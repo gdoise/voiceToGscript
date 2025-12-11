@@ -283,7 +283,7 @@
             recognition = new webkitSpeechRecognition();
             recognition.lang = 'fr-FR';
             recognition.continuous = false; // Reconnaissance phrase par phrase
-            recognition.interimResults = false; 
+            recognition.interimResults = true;   // ou false pour n'afficher que le texte finalement reconnu
 
             recognition.onstart = () => {
                 startButton.disabled = true;
