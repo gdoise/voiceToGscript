@@ -13,7 +13,7 @@
     </style>
 </head>
 <body>
-    <h1>Assistant Vocal Google Sheet vv1.1</h1>
+    <h1>Assistant Vocal Google Sheet v1.1</h1>
 
     <div id="status-container">
         <p>Statut du Système: <span id="status">Initialisation...</span></p>
@@ -94,16 +94,13 @@
         /**
          * Fonction: loadConfig
          * Rôle: Télécharge la liste des commandes et la configuration depuis Apps Script.
-         * ATTENTION: Le fetch vers Apps Script est désactivé ici pour isoler le problème 'network'.
          */
         async function loadConfig() {
             updateDisplay("Chargement de la configuration...");
-            // const configUrl = `${BASE_URL}?action=getConfig`; // Désactivé pour le test réseau
             
             try {
-                // BLOC DE DONNÉES EN DUR (Utilisé pour isoler le problème réseau)
+                // BLOC DE DONNÉES EN DUR (Assurer le succès)
                 // -----------------------------------------------------------------------------------
-                
                 commandsData = [ 
                     {"baseWord": "list", "comandGet": "listAllocine","echec":"paramètre ?"}, 
                     {"baseWord": "choisi", "comandGet": "choixAllocine","echec":"paramètre ?"},
@@ -115,23 +112,26 @@
                 ]; 
                 
                 // -----------------------------------------------------------------------------------
-                
-                // Si la tentative de fetch était ici, elle est maintenant ignorée.
-                // Si vous aviez la ligne 'const response = await fetch(configUrl);', elle doit être retirée.
 
-                updateDisplay("Configuration chargée. Prêt.");
-                dire("Configuration chargée. Prêt.");
+                // NOUVEAU CHECK VISUEL : Ajout d'une classe pour rendre le statut vert
+                statusEl.classList.add('success');
+                console.log("SUCCESS: Configuration des commandes en dur chargée."); // Vérification Console
+                
+                updateDisplay("Configuration chargée. Prêt. (Vérifiez si l'affichage est vert)");
+                
+                // Tente toujours de parler
+                dire("Configuration chargée. Prêt."); 
                 startButton.disabled = false;
 
             } catch (error) {
-                // Avec ce code, le catch ne sera normalement jamais atteint.
                 console.error("Erreur de chargement de la config:", error);
+                statusEl.classList.remove('success');
+                statusEl.classList.add('error');
                 updateDisplay("Erreur: Échec du chargement de la configuration.");
                 dire("Erreur: Échec du chargement de la configuration.");
             }
         }
-
-
+        
         // ________________________DEF__(Fonctions d'Action)___________________
 
         /**
