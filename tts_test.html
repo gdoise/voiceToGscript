@@ -15,14 +15,15 @@
     <button id="speakButton">Cliquez pour entendre "Bonjour le monde."</button>
 
     <script>
-        // Fonction de synthèse vocale simplifiée
+        // // _ Fonction de synthèse vocale simplifiée
         function dire(text) {
             // Vérifie si l'API est supportée
             if ('speechSynthesis' in window) {
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'fr-FR';
+                // // _ On tente la prononciation
                 window.speechSynthesis.speak(utterance);
-                document.getElementById('status').textContent = "Prononciation en cours...";
+                document.getElementById('status').textContent = "Prononciation tentée en 'fr-FR'...";
             } else {
                 document.getElementById('status').textContent = "ERREUR : L'API de synthèse vocale n'est pas supportée par ce navigateur.";
             }
@@ -32,26 +33,44 @@
             const statusEl = document.getElementById('status');
             const speakButton = document.getElementById('speakButton');
 
-            // Vérifie si des voix sont disponibles (un signe de support)
-            window.speechSynthesis.onvoiceschanged = function() {
-                if (window.speechSynthesis.getVoices().length === 0) {
-                    statusEl.textContent = "ATTENTION : L'API est supportée, mais aucune voix n'est chargée.";
+            // // _ Fonction pour vérifier et afficher les voix disponibles
+            function checkVoices() {
+                const voices = window.speechSynthesis.getVoices();
+                if (voices.length === 0) {
+                    statusEl.textContent = "ATTENTION : Aucune voix n'est chargée. Vérifiez vos paramètres Chrome/Système.";
                     statusEl.style.color = 'orange';
                 } else {
-                     statusEl.textContent = "API de synthèse vocale prête.";
-                     statusEl.style.color = 'green';
+                    const frenchVoices = voices.filter(voice => voice.lang.startsWith('fr'));
+                    
+                    if (frenchVoices.length > 0) {
+                        statusEl.textContent = `API de synthèse vocale prête. (${frenchVoices.length} voix(s) française(s) disponible(s)).`;
+                        statusEl.style.color = 'green';
+                    } else {
+                        statusEl.textContent = `API de synthèse vocale prête, mais aucune voix française trouvée.`;
+                        statusEl.style.color = 'darkorange';
+                    }
+                    console.log("Voix disponibles:", voices.map(v => v.name + ' (' + v.lang + ')')); // Aide au diagnostic
                 }
-            };
+            }
+            
+            // // _ Événement standard pour le chargement des voix
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.onvoiceschanged = checkVoices;
+
+                // // _ Si les voix sont déjà chargées, on les vérifie immédiatement
+                if (window.speechSynthesis.getVoices().length > 0) {
+                    checkVoices();
+                }
+
+                // // _ Ajout d'un délai pour le cas où l'événement onvoiceschanged ne se déclenche pas bien au démarrage
+                setTimeout(checkVoices, 1000); 
+            } else {
+                statusEl.textContent = "API de synthèse vocale non supportée.";
+            }
 
             speakButton.addEventListener('click', () => {
                 dire("Bonjour le monde. Si vous entendez cette phrase, le test TTS est un succès.");
             });
-
-            // Déclenche la vérification des voix (si l'événement n'a pas déjà eu lieu)
-            if (window.speechSynthesis.getVoices().length > 0) {
-                 statusEl.textContent = "API de synthèse vocale prête.";
-                 statusEl.style.color = 'green';
-            }
         });
     </script>
 </body>
