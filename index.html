@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Assistant Vocal Google Sheet Configurable</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        #status-container { margin-bottom: 20px; padding: 10px; border: 1px solid #ccc; }
+        #recognized-text-display { font-weight: bold; color: #007bff; }
+        #parametre-input { width: 400px; padding: 8px; margin-top: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Assistant Vocal Google Sheet</h1>
+
+    <div id="status-container">
+        <p>Statut du Système: <span id="status">Initialisation...</span></p>
+        <p>Mode Actuel: <span id="mode-display">auto</span></p>
+        <p>Paramètre Global (pour mode indirect): <span id="parametre-display">Non défini</span></p>
+    </div>
+
+    <p>Vous avez dit: <span id="recognized-text-display">...</span></p>
+
+    <fieldset>
+        <legend>Correction / Saisie Manuelle</legend>
+        <input type="text" id="parametre-input" placeholder="Tapez un paramètre ou une commande..." />
+        <button id="set-param-button">Définir Paramètre</button>
+        <button id="run-command-button">Exécuter Commande Manuelle</button>
+    </fieldset>
+    
+    <button id="start-button">Démarrer l'écoute</button>
+    <button id="stop-button" disabled>Arrêter l'écoute</button>
+
+    <script>
+        // // _ Définition des constantes et des variables globales
+        const BASE_URL = 'https://script.google.com/macros/s/AKfycbx30cUlzs3MErs6V0pcO9U0MlTKv1cHyOXpFqoAR31HZpNpIQoL7BbAbCwvfmldZOjU/exec'; 
+        // // _ Ceci est un DEPLOY_ID de démo. À REMPLACER par votre ID réel de Apps Script (celui du arrMySheet[0][1]).
+        
+        let mode = "auto";
+        let parametre = "";
+        let commandsData = []; // La liste des commandes sera chargée dynamiquement.
+        let recognition = null; // Objet pour la reconnaissance vocale
+
+        // // _ Références aux éléments du DOM
+        const statusEl = document.getElementById('status');
+        const modeDisplayEl = document.getElementById('mode-display');
+        const paramDisplayEl = document.getElementById('parametre-display');
+        const recognizedTextEl = document.getElementById('recognized-text-display');
+        const startButton = document.getElementById('start-button');
+        const stopButton = document.getElementById('stop-button');
+        const paramInput = document.getElementById('parametre-input');
+        const setParamButton = document.getElementById('set-param-button');
+        const runCommandButton = document.getElementById('run-command-button');
+
+        // ________________________DEF__(Fonctions Utilitaires)___________________
+
+        /**
+         * Fonction: dire
+         * Rôle: Utilise la synthèse vocale pour prononcer un texte.
+         * Usage: dire("Bonjour");
+         */
+        function dire(text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'fr-FR';
+            window.speechSynthesis.speak(utterance);
+        }
+
+        /**
+         * Fonction: noAccents
+         * Rôle: Supprime les accents, la ponctuation et met en minuscules.
+         * Usage: const sansAccent = noAccents("Liste Pénélope.");
+         */
+        function noAccents(strIn) {
+            // Normalise et supprime les accents, puis retire la ponctuation et les symboles non-lettres/chiffres
+            let normalized = strIn.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            normalized = normalized.replace(/[^a-zA-Z0-9\s]/g, ""); // Retire ponctuation
+            return normalized.toLowerCase().trim();
+        }
+
+        /**
+         * Fonction: updateDisplay
+         * Rôle: Met à jour l'affichage des informations clés (mode, paramètre, statut).
+         */
+        function updateDisplay(newStatus = null) {
+            if (newStatus) {
+                statusEl.textContent = newStatus;
+            }
+            modeDisplayEl.textContent = mode;
+            paramDisplayEl.textContent = parametre ? parametre : "Non défini";
+        }
+
+        /**
+         * Fonction: loadConfig
+         * Rôle: Télécharge la liste des commandes et la configuration depuis Apps Script.
+         * Points particuliers: Nécessite que Apps Script ait une action 'getConfig'.
+         */
+        async function loadConfig() {
+            updateDisplay("Chargement de la configuration...");
+            // // _ Dans votre Apps Script, vous aurez besoin d'une fonction doGet() qui gère 'action=getConfig'
+            // // _ et qui renvoie un JSON contenant la liste des commandes.
+            const configUrl = `${BASE_URL}?action=getConfig`; 
+            
+            try {
+                // Pour l'instant, nous utilisons un JSON de secours tant que 'getConfig' n'est pas prêt.
+                // REMPLACER CE BLOC LORSQUE VOTRE Apps Script DE 'getConfig' SERA PRÊT.
+                // -----------------------------------------------------------------------------------
+                
+                // Simule une réponse Apps Script pour les tests initiaux
+                commandsData = [ 
+                    {"baseWord": "list", "comandGet": "listAllocine","echec":"paramètre ?"}, 
+                    {"baseWord": "choisi", "comandGet": "choixAllocine","echec":"paramètre ?"},
+                    {"baseWord": "cherche exact", "comandGet": "findExact","echec":"paramètre ?"},
+                    {"baseWord": "cherche", "comandGet": "find","echec":"paramètre ?"},
+                    {"baseWord": "quit", "comandGet": "Quitter","echec":"paramètre ?"},
+                    {"baseWord": "identifiant", "comandGet": "goWSheetIdRow","echec":"paramètre ?"},
+                    {"baseWord": "allocine", "comandGet": "allocine","echec":"paramètre ?"}
+                ]; 
+                
+                // -----------------------------------------------------------------------------------
+
+                updateDisplay("Configuration chargée. Prêt.");
+                dire("Configuration chargée. Prêt.");
+                startButton.disabled = false;
+
+            } catch (error) {
+                console.error("Erreur de chargement de la config:", error);
+                updateDisplay("Erreur: Échec du chargement de la configuration.");
+                dire("Erreur: Échec du chargement de la configuration.");
+            }
+        }
+
+
+        // ________________________DEF__(Fonctions d'Action)___________________
+
+        /**
+         * Fonction: sendCommand
+         * Rôle: Envoie la commande et le paramètre à Google Apps Script via fetch.
+         * Usage: sendCommand("listAllocine", "penelope");
+         */
+        async function sendCommand(action, param1) {
+            // // _ La conversion noAccents n'est pas nécessaire ici, car param1 est déjà traité par processCommand/paramInput.
+            const url = `${BASE_URL}?action=${action}&param1=${encodeURIComponent(param1)}`;
+            console.log(`Envoi de la commande: ${url}`);
+            
+            const oldStatus = statusEl.textContent;
+            statusEl.textContent = `Envoi de ${action}...`;
+
+            try {
+                const response = await fetch(url);
+                const textResponse = await response.text();
+                
+                if (response.ok) {
+                    console.log("Réponse Apps Script: ", textResponse);
+                    recognizedTextEl.innerHTML = `<span class="success">Réussite: ${textResponse.substring(0, 100)}...</span>`;
+                    dire(`Action ${action} terminée.`); 
+                } else {
+                    console.error(`Erreur HTTP: ${response.status}: ${textResponse}`);
+                    recognizedTextEl.innerHTML = `<span class="error">Échec: ${response.status}</span>`;
+                    dire(`Échec de la commande ${action}.`);
+                }
+            } catch (error) {
+                console.error("Erreur de connexion Apps Script: ", error);
+                recognizedTextEl.innerHTML = `<span class="error">Erreur de connexion</span>`;
+                dire("Erreur de connexion.");
+            } finally {
+                updateDisplay(oldStatus);
+            }
+        }
+
+        // ________________________DEF__(Logique Commande)___________________
+
+        /**
+         * Fonction: processCommand
+         * Rôle: Gère la logique de la commande vocale (modes, paramètres, exécution).
+         * Usage: processCommand("cherche exact titanic");
+         */
+        function processCommand(phraseBrute) {
+            let phrase = noAccents(phraseBrute);
+            console.log('SAID (Normalisé):' + phrase);
+            recognizedTextEl.textContent = phraseBrute;
+
+            // 1. GESTION DES COMMANDES INTERNES (Mode, Paramètre)
+            
+            // a. Gestion du Mode
+            if (phrase.includes("mode")) {
+                let newMode = phrase.includes("direct") ? "direct" :
+                              phrase.includes("indirect") ? "indirect" :
+                              phrase.includes("auto") ? "auto" : null;
+                if (newMode) {
+                    mode = newMode;
+                    updateDisplay(`Mode changé en ${mode}`);
+                    dire(`Mode ${mode}`);
+                    return;
+                }
+            }
+
+            // b. Gestion du Paramètre (pour le mode indirect)
+            if (phrase.includes("parametre egal") || phrase.includes("parametre =")) {
+                // Recherche tout ce qui vient après le mot "égal" ou "="
+                const match = phraseBrute.match(/egal\s*(.*)|=\s*(.*)/);
+                if (match && (match[1] || match[2])) {
+                    parametre = match[1] ? match[1].trim() : match[2].trim(); // Garde les accents dans le paramètre !
+                    updateDisplay(`Paramètre global défini.`);
+                    dire(`Paramètre défini: ${parametre}`);
+                    return;
+                }
+            }
+
+            // 2. RECHERCHE ET EXÉCUTION DE LA COMMANDE APPS SCRIPT
+            for (const item of commandsData) {
+                let commandFound = true;
+                const baseWords = noAccents(item.baseWord).split(" ");
+                let lastWord = baseWords[baseWords.length - 1];
+
+                for (const w of baseWords) {
+                    if (!phrase.includes(w)) {
+                        commandFound = false;
+                        break;
+                    }
+                }
+
+                if (commandFound) {
+                    let getAction = item.comandGet;
+                    let getParam1 = "";
+                    
+                    // Si 'quit', pas d'envoi à Apps Script
+                    if (getAction === "Quitter") {
+                        dire("Au revoir !");
+                        recognition.stop();
+                        return;
+                    }
+
+                    // Extrait le paramètre (ce qui suit le dernier mot de la commande)
+                    // On cherche le paramètre dans la PHRASE BRUTE (avec accents) pour le garder intact
+                    const indexAfterCommand = phrase.indexOf(lastWord) + lastWord.length;
+                    // On trouve l'équivalent dans la phrase brute (c'est une estimation car les longueurs peuvent varier)
+                    let paramVoc = phraseBrute.substring(indexAfterCommand).trim(); 
+
+                    // LOGIQUE D'EXÉCUTION
+                    const paramIsProvided = paramVoc !== "";
+
+                    if (mode === "auto") {
+                        getParam1 = paramIsProvided ? paramVoc : parametre;
+                    } else if (mode === "indirect") {
+                        getParam1 = parametre; // Toujours utiliser le paramètre global
+                    } else if (mode === "direct" && paramIsProvided) {
+                        getParam1 = paramVoc; // Utiliser seulement ce qui a été dit
+                    }
+                    
+                    // Vérification finale du paramètre
+                    if (getParam1) {
+                        sendCommand(getAction, getParam1);
+                        return; // Une fois trouvée et exécutée, on sort
+                    } else {
+                        console.log(item.echec);
+                        dire(`Veuillez spécifier un ${item.echec}`);
+                        return;
+                    }
+                }
+            }
+
+            // Si aucune commande reconnue
+            if (!phrase.includes("mode") && !phrase.includes("parametre")) {
+                 dire("Commande non reconnue.");
+            }
+        }
+
+        // ________________________DEF__(Reconnaissance Vocale)___________________
+
+        /**
+         * Fonction: startSpeechRecognition
+         * Rôle: Initialise et gère l'écoute vocale.
+         */
+        function startSpeechRecognition() {
+            if (!('webkitSpeechRecognition' in window)) {
+                dire("Désolé, votre navigateur ne supporte pas la reconnaissance vocale.");
+                updateDisplay("Non supporté.");
+                return;
+            }
+
+            recognition = new webkitSpeechRecognition();
+            recognition.lang = 'fr-FR';
+            recognition.continuous = false; // Reconnaissance phrase par phrase
+            recognition.interimResults = false; 
+
+            recognition.onstart = () => {
+                startButton.disabled = true;
+                stopButton.disabled = false;
+                updateDisplay("En écoute... Parlez.");
+                console.log("Reconnaissance vocale démarrée.");
+            };
+
+            recognition.onresult = (event) => {
+                const last = event.results.length - 1;
+                let phrase = event.results[last][0].transcript;
+                processCommand(phrase);
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Erreur de reconnaissance vocale:', event.error);
+                if (event.error === 'not-allowed') {
+                    updateDisplay("Accès microphone refusé.");
+                } else if (event.error === 'no-speech') {
+                    // C'est souvent la fin normale d'une écoute courte
+                    updateDisplay("Rien entendu. Redémarrage...");
+                } else {
+                    updateDisplay("Erreur d'écoute.");
+                }
+            };
+
+            recognition.onend = () => {
+                if (stopButton.disabled === false) {
+                     // Si l'écoute n'a pas été stoppée manuellement, on relance
+                    recognition.start();
+                } else {
+                    updateDisplay("Prêt.");
+                }
+            };
+            
+            recognition.start();
+            dire("Je vous écoute.");
+        }
+
+        // ________________________MAIN___________________
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // 1. Initialisation
+            loadConfig(); 
+
+            // 2. Événements pour la reconnaissance vocale
+            startButton.addEventListener('click', startSpeechRecognition);
+            stopButton.addEventListener('click', () => {
+                if (recognition) {
+                    recognition.stop();
+                    startButton.disabled = false;
+                    stopButton.disabled = true;
+                    updateDisplay("Écoute arrêtée.");
+                }
+            });
+
+            // 3. Événements pour la saisie manuelle (Correction)
+            setParamButton.addEventListener('click', () => {
+                const newParam = paramInput.value.trim();
+                if (newParam) {
+                    parametre = newParam;
+                    updateDisplay("Paramètre global mis à jour manuellement.");
+                    paramInput.value = "";
+                    dire("Paramètre mis à jour.");
+                }
+            });
+
+            // 4. Exécution manuelle d'une commande complète
+            runCommandButton.addEventListener('click', () => {
+                const manualCommand = paramInput.value.trim();
+                if (manualCommand) {
+                    processCommand(manualCommand);
+                    paramInput.value = "";
+                }
+            });
+        });
+    </script>
+</body>
+</html>
