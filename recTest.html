@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Test de la Reconnaissance Vocale</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .log-error { color: red; font-weight: bold; }
+        #logs { max-height: 200px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; background-color: #f9f9f9; }
+    </style>
+</head>
+<body>
+    <h1>Test de la Reconnaissance Vocale v1.1</h1>
+    <p><strong>Statut:</strong> <span id="status">En attente de démarrage...</span></p>
+    <p><strong>Résultat Reconnu:</strong> <span id="result">...</span></p>
+    <button id="startButton">Démarrer l'écoute</button>
+    
+    <div id="logs">
+        <h2>Journal des événements</h2>
+    </div>
+
+    <script>
+        // // _ Déclaration de l'objet de reconnaissance (utilise webkit pour la compatibilité Chrome)
+        const SpeechRecognition = window.webkitSpeechRecognition;
+        let recognition = null;
+
+        /**
+         * Fonction: log
+         * Rôle: Ajoute un message au journal des événements affiché à l'écran.
+         */
+        function log(message, isError = false) {
+            const logs = document.getElementById('logs');
+            const p = document.createElement('p');
+            p.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            if (isError) {
+                p.classList.add('log-error');
+            }
+            logs.appendChild(p);
+            logs.scrollTop = logs.scrollHeight; // Scroll vers le bas
+        }
+
+        /**
+         * Fonction: startRecognition
+         * Rôle: Initialise et démarre le processus de reconnaissance vocale.
+         */
+        function startRecognition() {
+            if (!SpeechRecognition) {
+                document.getElementById('status').textContent = "ERREUR : API non supportée.";
+                log("API webkitSpeechRecognition non trouvée.", true);
+                return;
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.lang = 'fr-FR';
+            recognition.continuous = false; // Reconnaissance phrase par phrase
+            recognition.interimResults = false; // Ne renvoie que le résultat final
+            
+            recognition.onstart = () => {
+                document.getElementById('status').textContent = "EN ÉCOUTE... Parlez maintenant.";
+                log("Événement: onstart (Micro activé).");
+            };
+
+            recognition.onresult = (event) => {
+                const phrase = event.results[0][0].transcript;
+                document.getElementById('status').textContent = "Reconnaissance terminée.";
+                document.getElementById('result').textContent = phrase;
+                log(`Événement: onresult. Phrase reconnue: "${phrase}"`);
+            };
+
+            recognition.onerror = (event) => {
+                document.getElementById('status').textContent = `ERREUR : ${event.error}`;
+                log(`Événement: onerror. Code d'erreur: ${event.error}`, true);
+            };
+
+            recognition.onend = () => {
+                log("Événement: onend (Reconnaissance terminée ou arrêtée).");
+                document.getElementById('status').textContent = "Prêt. Cliquez pour recommencer.";
+            };
+
+            // // _ Tente de démarrer
+            try {
+                recognition.start();
+            } catch (e) {
+                log(`Erreur de démarrage: ${e.message}`, true);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('startButton').addEventListener('click', startRecognition);
+            log("Page chargée. Prête à démarrer la reconnaissance vocale.");
+        });
+    </script>
+</body>
+</html>
