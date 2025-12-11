@@ -13,7 +13,7 @@
     </style>
 </head>
 <body>
-    <h1>Assistant Vocal Google Sheet v1.1</h1>
+    <h1>Assistant Vocal Google Sheet V1.1</h1>
 
     <div id="status-container">
         <p>Statut du Système: <span id="status">Initialisation...</span></p>
@@ -301,17 +301,26 @@
             recognition.onerror = (event) => {
                 console.error('Erreur de reconnaissance vocale:', event.error);
                 let errorMessage = "Erreur inconnue.";
+                
+                // Mettre à jour le statut et le message d'erreur
                 if (event.error === 'not-allowed' || event.error === 'permission-denied') {
-                    errorMessage = "Accès microphone refusé. Vérifiez la barre d'adresse.";
-                    // On stoppe le redémarrage pour ne pas spammer
+                    errorMessage = "Accès microphone refusé. (Autorisation nécessaire).";
+                    // Erreur critique : on n'essaie pas de redémarrer
                     stopButton.disabled = true;
                     startButton.disabled = false;
                 } else if (event.error === 'no-speech') {
-                    errorMessage = "Rien entendu (trop silencieux ou micro coupé).";
+                    errorMessage = "Rien entendu. (Parlez plus fort ou plus près).";
                 } else if (event.error === 'audio-capture') {
-                    errorMessage = "Erreur de capture audio (problème de périphérique).";
+                    errorMessage = "Erreur de capture audio. (Micro occupé ?).";
+                } else if (event.error === 'network') {
+                    errorMessage = "Erreur réseau. (Connexion instable ?).";
                 }
                 updateDisplay(errorMessage);
+
+                // Si ce n'est pas une erreur de permission, on peut laisser le onend redémarrer l'écoute
+                // ou forcer un redémarrage si l'écoute est continue.
+                // Dans notre cas (continuous=false), le onend va se charger de relancer,
+                // sauf si l'erreur est critique (permission).
             };
 
             recognition.onend = () => {
