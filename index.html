@@ -94,20 +94,16 @@
         /**
          * Fonction: loadConfig
          * Rôle: Télécharge la liste des commandes et la configuration depuis Apps Script.
-         * Points particuliers: Nécessite que Apps Script ait une action 'getConfig'.
+         * ATTENTION: Le fetch vers Apps Script est désactivé ici pour isoler le problème 'network'.
          */
         async function loadConfig() {
             updateDisplay("Chargement de la configuration...");
-            // // _ Dans votre Apps Script, vous aurez besoin d'une fonction doGet() qui gère 'action=getConfig'
-            // // _ et qui renvoie un JSON contenant la liste des commandes.
-            //const configUrl = `${BASE_URL}?action=getConfig`; 
+            // const configUrl = `${BASE_URL}?action=getConfig`; // Désactivé pour le test réseau
             
             try {
-                // Pour l'instant, nous utilisons un JSON de secours tant que 'getConfig' n'est pas prêt.
-                // REMPLACER CE BLOC LORSQUE VOTRE Apps Script DE 'getConfig' SERA PRÊT.
+                // BLOC DE DONNÉES EN DUR (Utilisé pour isoler le problème réseau)
                 // -----------------------------------------------------------------------------------
                 
-                // Simule une réponse Apps Script pour les tests initiaux
                 commandsData = [ 
                     {"baseWord": "list", "comandGet": "listAllocine","echec":"paramètre ?"}, 
                     {"baseWord": "choisi", "comandGet": "choixAllocine","echec":"paramètre ?"},
@@ -119,12 +115,16 @@
                 ]; 
                 
                 // -----------------------------------------------------------------------------------
+                
+                // Si la tentative de fetch était ici, elle est maintenant ignorée.
+                // Si vous aviez la ligne 'const response = await fetch(configUrl);', elle doit être retirée.
 
                 updateDisplay("Configuration chargée. Prêt.");
                 dire("Configuration chargée. Prêt.");
                 startButton.disabled = false;
 
             } catch (error) {
+                // Avec ce code, le catch ne sera normalement jamais atteint.
                 console.error("Erreur de chargement de la config:", error);
                 updateDisplay("Erreur: Échec du chargement de la configuration.");
                 dire("Erreur: Échec du chargement de la configuration.");
