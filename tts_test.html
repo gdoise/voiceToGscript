@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Test de la Synthèse Vocale (TTS)</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        #status { font-weight: bold; color: green; }
+    </style>
+</head>
+<body>
+    <h1>Test de la Synthèse Vocale</h1>
+    <p>Statut: <span id="status">Initialisation...</span></p>
+    
+    <button id="speakButton">Cliquez pour entendre "Bonjour le monde."</button>
+
+    <script>
+        // Fonction de synthèse vocale simplifiée
+        function dire(text) {
+            // Vérifie si l'API est supportée
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'fr-FR';
+                window.speechSynthesis.speak(utterance);
+                document.getElementById('status').textContent = "Prononciation en cours...";
+            } else {
+                document.getElementById('status').textContent = "ERREUR : L'API de synthèse vocale n'est pas supportée par ce navigateur.";
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const statusEl = document.getElementById('status');
+            const speakButton = document.getElementById('speakButton');
+
+            // Vérifie si des voix sont disponibles (un signe de support)
+            window.speechSynthesis.onvoiceschanged = function() {
+                if (window.speechSynthesis.getVoices().length === 0) {
+                    statusEl.textContent = "ATTENTION : L'API est supportée, mais aucune voix n'est chargée.";
+                    statusEl.style.color = 'orange';
+                } else {
+                     statusEl.textContent = "API de synthèse vocale prête.";
+                     statusEl.style.color = 'green';
+                }
+            };
+
+            speakButton.addEventListener('click', () => {
+                dire("Bonjour le monde. Si vous entendez cette phrase, le test TTS est un succès.");
+            });
+
+            // Déclenche la vérification des voix (si l'événement n'a pas déjà eu lieu)
+            if (window.speechSynthesis.getVoices().length > 0) {
+                 statusEl.textContent = "API de synthèse vocale prête.";
+                 statusEl.style.color = 'green';
+            }
+        });
+    </script>
+</body>
+</html>
