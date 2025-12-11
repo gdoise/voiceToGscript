@@ -300,14 +300,18 @@
 
             recognition.onerror = (event) => {
                 console.error('Erreur de reconnaissance vocale:', event.error);
-                if (event.error === 'not-allowed') {
-                    updateDisplay("Accès microphone refusé.");
+                let errorMessage = "Erreur inconnue.";
+                if (event.error === 'not-allowed' || event.error === 'permission-denied') {
+                    errorMessage = "Accès microphone refusé. Vérifiez la barre d'adresse.";
+                    // On stoppe le redémarrage pour ne pas spammer
+                    stopButton.disabled = true;
+                    startButton.disabled = false;
                 } else if (event.error === 'no-speech') {
-                    // C'est souvent la fin normale d'une écoute courte
-                    updateDisplay("Rien entendu. Redémarrage...");
-                } else {
-                    updateDisplay("Erreur d'écoute.");
+                    errorMessage = "Rien entendu (trop silencieux ou micro coupé).";
+                } else if (event.error === 'audio-capture') {
+                    errorMessage = "Erreur de capture audio (problème de périphérique).";
                 }
+                updateDisplay(errorMessage);
             };
 
             recognition.onend = () => {
