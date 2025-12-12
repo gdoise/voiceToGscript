@@ -13,7 +13,7 @@
     </style>
 </head>
 <body>
-    <h1>Assistant Vocal Google Sheet v1.2</h1>
+    <h1>Assistant Vocal Google Sheet br main v2.7 OK avant implement de GetLatestGScriptID</h1>
 
     <div id="status-container">
         <p>Statut du Système: <span id="status">Initialisation...</span></p>
@@ -32,10 +32,12 @@
     
     <button id="start-button">Démarrer l'écoute</button>
     <button id="stop-button" disabled>Arrêter l'écoute</button>
-
+    <h3>Journal client</h3>
+    <textarea id="client-log" style="width:100%;height:200px;font-size:12px;"></textarea>
+    
     <script>
         // // _ Définition des constantes et des variables globales
-        //const BASE_URL = 'https://script.google.com/macros/s/AKfycbw29jEnWMJ0l3HJFUptrtKEMp4zk2G4zA-NbJJxSBRffFio8qCMX01l0sVS-rBuRWBd/exec'; // ok avec v1.2 (sans gestion des synonyme)
+        //on ira le chercher sur GetLatestGScriptID   https://docs.google.com/spreadsheets/d/1rXN5MojlxvFxKcy9QScEZ_wAxEDLANgBmlJ3HoyzIPg/edit?gid=0#gid=0
         const BASE_URL = 'https://script.google.com/macros/s/AKfycbxXf0XjuRmvIeuptw7zEA8SHwPAo-0rxv8aFoGa20lk1KpbgxupcL7L-FiaAGE_86pI/exec';
         // // _ Ceci est un DEPLOY_ID de démo. À REMPLACER par votre ID réel de Apps Script (celui du arrMySheet[0][1]).
         
@@ -55,8 +57,24 @@
         const setParamButton = document.getElementById('set-param-button');
         const runCommandButton = document.getElementById('run-command-button');
 
-        // ________________________DEF__(Fonctions Utilitaires)___________________
+        let lastCommand = {
+            action: "",
+            param: "",
+            time: 0
+        };
 
+
+        // ________________________DEF__(Fonctions Utilitaires)___________________
+        
+        function logClient(msg) {
+            const logArea = document.getElementById("client-log");
+            if (logArea) {
+                const t = new Date().toLocaleTimeString();
+                logArea.value += `[${t}] ${msg}\n`;
+                logArea.scrollTop = logArea.scrollHeight;
+            }
+        }
+        
         /**
          * Fonction: dire
          * Rôle: Utilise la synthèse vocale pour prononcer un texte.
@@ -103,13 +121,14 @@
                 // BLOC DE DONNÉES EN DUR (Assurer le succès)
                 // -----------------------------------------------------------------------------------
                 commandsData = [ 
-                    {"baseWord": "liste", "comandGet": "listAllocine","echec":"paramètre ?"}, 
-                    {"baseWord": "choisis", "comandGet": "choixAllocine","echec":"paramètre ?"},
-                    {"baseWord": "cherche exact", "comandGet": "findExact","echec":"paramètre ?"},
-                    {"baseWord": "cherche", "comandGet": "find","echec":"paramètre ?"},
-                    {"baseWord": "quit", "comandGet": "Quitter","echec":"paramètre ?"},
-                    {"baseWord": "identifiant", "comandGet": "goWSheetIdRow","echec":"paramètre ?"},
-                    {"baseWord": "allocine", "comandGet": "allocine","echec":"paramètre ?"}
+                    {"baseWords": ["liste", "list"], "comandGet": "listAllocine","echec":"paramètre ?"}, 
+                    {"baseWords": ["choisis", "choisi", "choisit"], "comandGet": "choixAllocine","echec":"paramètre ?"},
+                    {"baseWords": "cherche exact", "comandGet": "findExact","echec":"paramètre ?"},
+                    {"baseWords": "cherche", "comandGet": "find","echec":"paramètre ?"},
+                    {"baseWords": "quit", "comandGet": "Quitter","echec":"paramètre ?"},
+                    {"baseWords": "identifiant", "comandGet": "goWSheetIdRow","echec":"paramètre ?"},
+                    {"baseWords": "allocine", "comandGet": "allocine","echec":"paramètre ?"},
+                    {"baseWords": "selectionne", "comandGet": "SelectIdRow","echec":"paramètre ?"}
                 ]; 
                 
                 // -----------------------------------------------------------------------------------
@@ -178,7 +197,9 @@
          * Usage: processCommand("cherche exact titanic");
          */
         function processCommand(phraseBrute) {
+            logClient("-192 processCommand() → phrase brute: " + phraseBrute);
             let phrase = noAccents(phraseBrute);
+            logClient("-194 processCommand() → normalisé: " + phrase);
             console.log('SAID (Normalisé):' + phrase);
             recognizedTextEl.textContent = phraseBrute;
 
@@ -211,59 +232,80 @@
 
             // 2. RECHERCHE ET EXÉCUTION DE LA COMMANDE APPS SCRIPT
             for (const item of commandsData) {
-                let commandFound = true;
-                const baseWords = noAccents(item.baseWord).split(" ");
-                let lastWord = baseWords[baseWords.length - 1];
+                logClient("-227 Test commande: " + JSON.stringify(item));
+                // --- NOUVEAU : itère sur tous les synonymes ---
+                let commandFound = false;
+                let matchedWord = "";
+                
+                const synList = Array.isArray(item.baseWords) ? item.baseWords : [];
+                logClient("→ Synonymes analysés: " + JSON.stringify(synList));
 
-                for (const w of baseWords) {
-                    if (!phrase.includes(w)) {
-                        commandFound = false;
+                for (const syn of synList) { //(const syn of item.baseWords) 
+                    let synNorm = noAccents(syn).trim();
+                    if (synNorm && phrase.includes(synNorm)) {
+                        commandFound = true;
+                        matchedWord = synNorm;
                         break;
                     }
                 }
-
+            
                 if (commandFound) {
+                    logClient("-242 => Commande reconnue grâce au synonyme: '" + matchedWord + "'");
                     let getAction = item.comandGet;
                     let getParam1 = "";
-                    
-                    // Si 'quit', pas d'envoi à Apps Script
+            
+                    // Quitter (inchangé)
                     if (getAction === "Quitter") {
                         dire("Au revoir !");
                         recognition.stop();
                         return;
                     }
-
-                    // Extrait le paramètre (ce qui suit le dernier mot de la commande)
-                    // On cherche le paramètre dans la PHRASE BRUTE (avec accents) pour le garder intact
-                    const indexAfterCommand = phrase.indexOf(lastWord) + lastWord.length;
-                    // On trouve l'équivalent dans la phrase brute (c'est une estimation car les longueurs peuvent varier)
-                    let paramVoc = phraseBrute.substring(indexAfterCommand).trim(); 
-
-                    // LOGIQUE D'EXÉCUTION
+            
+                    // --- NOUVEAU : extraction param basée sur le synonyme réellement trouvé ---
+                    const indexAfter = phrase.indexOf(matchedWord) + matchedWord.length;
+                    let paramVoc = phraseBrute.substring(indexAfter).trim();
+            
                     const paramIsProvided = paramVoc !== "";
-
+                    logClient("-258 Param extrait: '" + paramVoc + "'  | Paramètre global=" + parametre);
                     if (mode === "auto") {
                         getParam1 = paramIsProvided ? paramVoc : parametre;
                     } else if (mode === "indirect") {
-                        getParam1 = parametre; // Toujours utiliser le paramètre global
+                        getParam1 = parametre;
                     } else if (mode === "direct" && paramIsProvided) {
-                        getParam1 = paramVoc; // Utiliser seulement ce qui a été dit
+                        getParam1 = paramVoc;
                     }
-                    
-                    // Vérification finale du paramètre
+            
+                    // Final
                     if (getParam1) {
+                        logClient("-269 Envoi à Apps Script: action=" + getAction + " param1=" + getParam1);
+                        // Anti-répétition : bloque les doublons rapprochés
+                        const now = Date.now();
+                        if (
+                            lastCommand.action === getAction &&
+                            lastCommand.param === getParam1 &&
+                            (now - lastCommand.time) < 1200       // 1.2 seconde
+                        ) {
+                            logClient("⚠️ Commande ignorée (doublon rapproché) : action=" + getAction + " param=" + getParam1);
+                            return;
+                        }
+                        
+                        // Mise à jour mémoire anti-doublon
+                        lastCommand.action = getAction;
+                        lastCommand.param = getParam1;
+                        lastCommand.time = now;
                         sendCommand(getAction, getParam1);
-                        return; // Une fois trouvée et exécutée, on sort
+                        return;
                     } else {
-                        console.log(item.echec);
+                        logClient("-273 Paramètre manquant → item.echec=" + item.echec);
                         dire(`Veuillez spécifier un ${item.echec}`);
                         return;
                     }
                 }
-            }
+            }                
 
             // Si aucune commande reconnue
             if (!phrase.includes("mode") && !phrase.includes("parametre")) {
+                 logClient("-282 Aucune commande reconnue pour cette phrase.");
                  dire("Commande non reconnue.");
             }
         }
@@ -342,6 +384,24 @@
         document.addEventListener('DOMContentLoaded', () => {
             // 1. Initialisation
             loadConfig(); 
+            
+            // Normalisation universelle : convertit toutes les commandes en listes de mots-clés
+            commandsData = commandsData.map(cmd => {
+                let bw = cmd.baseWords;
+            
+                // Si baseWords est une string → split
+                if (typeof bw === "string") {
+                    bw = bw.split(",").map(s => s.trim()).filter(s => s !== "");
+                }
+            
+                // Si c'était déjà un tableau → ok
+                cmd.baseWords = bw;
+            
+                return cmd;
+            });
+            
+            logClient("Commandes normalisées: " + JSON.stringify(commandsData));
+
 
             // 2. Événements pour la reconnaissance vocale
             startButton.addEventListener('click', startSpeechRecognition);
