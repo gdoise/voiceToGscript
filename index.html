@@ -13,7 +13,7 @@
     </style>
 </head>
 <body>
-    <h1>Assistant Vocal Google Sheet v1.3 Synonymes en dur</h1>
+    <h1>Assistant Vocal Google Sheet v1.2</h1>
 
     <div id="status-container">
         <p>Statut du Système: <span id="status">Initialisation...</span></p>
@@ -35,11 +35,12 @@
 
     <script>
         // // _ Définition des constantes et des variables globales
-        const BASE_URL = 'https://script.google.com/macros/s/AKfycbxXf0XjuRmvIeuptw7zEA8SHwPAo-0rxv8aFoGa20lk1KpbgxupcL7L-FiaAGE_86pI/exec'; 
+        const BASE_URL = 'https://script.google.com/macros/s/AKfycbw29jEnWMJ0l3HJFUptrtKEMp4zk2G4zA-NbJJxSBRffFio8qCMX01l0sVS-rBuRWBd/exec'; 
         // // _ Ceci est un DEPLOY_ID de démo. À REMPLACER par votre ID réel de Apps Script (celui du arrMySheet[0][1]).
         
         let mode = "auto";
         let parametre = "";
+        let commandsData = []; // La liste des commandes sera chargée dynamiquement.
         let recognition = null; // Objet pour la reconnaissance vocale
 
         // // _ Références aux éléments du DOM
@@ -53,19 +54,6 @@
         const setParamButton = document.getElementById('set-param-button');
         const runCommandButton = document.getElementById('run-command-button');
 
-        // BLOC DE DONNÉES EN DUR (Assurer le succès)
-        // -----------------------------------------------------------------------------------
-        let commandsData = [   // La liste des commandes sera chargée dynamiquement.
-            // // _ baseWords est maintenant un tableau de synonymes.
-            {"baseWords": ["liste", "list"], "comandGet": "listAllocine","echec":"paramètre ?"}, 
-            {"baseWords": ["choisi", "choisis", "choisit"], "comandGet": "choixAllocine","echec":"paramètre ?"},
-            {"baseWords": ["cherche exact"], "comandGet": "findExact","echec":"paramètre ?"},
-            {"baseWords": ["cherche"], "comandGet": "find","echec":"paramètre ?"},
-            {"baseWords": ["quit", "quitter"], "comandGet": "Quitter","echec":"paramètre ?"},
-            {"baseWords": ["identifiant"], "comandGet": "goWSheetIdRow","echec":"paramètre ?"},
-            {"baseWords": ["allocine"], "comandGet": "allocine","echec":"paramètre ?"}
-        ];
-        
         // ________________________DEF__(Fonctions Utilitaires)___________________
 
         /**
@@ -102,21 +90,29 @@
             modeDisplayEl.textContent = mode;
             paramDisplayEl.textContent = parametre ? parametre : "Non défini";
         }
-        
+
         /**
          * Fonction: loadConfig
          * Rôle: Télécharge la liste des commandes et la configuration depuis Apps Script.
          */
         async function loadConfig() {
             updateDisplay("Chargement de la configuration...");
-            const configUrl = `${BASE_URL}?action=getConfig`;
-            try{
-                if (false){ // pour forcer l'usage du BLOC DE DONNÉES EN DUR (À utiliser pour les tests JS locaux si le fetch échoue)
-                    // -----------------------------------------------------------------------------------
-                    // // _ BLOC DE DONNÉES DYNAMIQUES (À utiliser si le fetch réussit)
-                    const response = await fetch(configUrl); 
-                    commandsData = await response.json();
-                }
+            
+            try {
+                // BLOC DE DONNÉES EN DUR (Assurer le succès)
+                // -----------------------------------------------------------------------------------
+                commandsData = [ 
+                    {"baseWord": "liste", "comandGet": "listAllocine","echec":"paramètre ?"}, 
+                    {"baseWord": "choisis", "comandGet": "choixAllocine","echec":"paramètre ?"},
+                    {"baseWord": "cherche exact", "comandGet": "findExact","echec":"paramètre ?"},
+                    {"baseWord": "cherche", "comandGet": "find","echec":"paramètre ?"},
+                    {"baseWord": "quit", "comandGet": "Quitter","echec":"paramètre ?"},
+                    {"baseWord": "identifiant", "comandGet": "goWSheetIdRow","echec":"paramètre ?"},
+                    {"baseWord": "allocine", "comandGet": "allocine","echec":"paramètre ?"}
+                ]; 
+                
+                // -----------------------------------------------------------------------------------
+
                 // NOUVEAU CHECK VISUEL : Ajout d'une classe pour rendre le statut vert
                 statusEl.classList.add('success');
                 console.log("SUCCESS: Configuration des commandes en dur chargée."); // Vérification Console
@@ -128,54 +124,48 @@
                 startButton.disabled = false;
 
             } catch (error) {
-                console.error("Config en dure - Erreur de chargement de la config:", error);
+                console.error("Erreur de chargement de la config:", error);
                 statusEl.classList.remove('success');
                 statusEl.classList.add('error');
-                updateDisplay("config en dure _ Erreur: Échec du chargement de la configuration.");
-                dire("Config en dure - Erreur: Échec du chargement de la configuration.");
+                updateDisplay("Erreur: Échec du chargement de la configuration.");
+                dire("Erreur: Échec du chargement de la configuration.");
             }
         }
         
         // ________________________DEF__(Fonctions d'Action)___________________
 
         /**
-         * Fonction: sendToAppsScript
-         * Rôle: Envoie la commande et le paramètre à l'application Google Apps Script.
-         * Points Particuliers: Ajout d'un traitement d'erreur robuste pour diagnostiquer les problèmes réseau/CORS.
-         * @param {string} action - L'action (comandGet) à exécuter.
-         * @param {string} param1 - Le paramètre de la commande.
+         * Fonction: sendCommand
+         * Rôle: Envoie la commande et le paramètre à Google Apps Script via fetch.
+         * Usage: sendCommand("listAllocine", "penelope");
          */
-        async function sendToAppsScript(action, param1) {
-            // // _ Utilise encodeURIComponent pour s'assurer que les espaces et caractères spéciaux sont bien encodés
+        async function sendCommand(action, param1) {
+            // // _ La conversion noAccents n'est pas nécessaire ici, car param1 est déjà traité par processCommand/paramInput.
             const url = `${BASE_URL}?action=${action}&param1=${encodeURIComponent(param1)}`;
+            console.log(`Envoi de la commande: ${url}`);
             
-            console.log(`[Requête Apps Script] Tentative d'envoi: ${url}`);
-            updateDisplay(`Envoi de la commande ${action} avec paramètre: ${param1}...`);
-            dire("Envoi en cours.");
+            const oldStatus = statusEl.textContent;
+            statusEl.textContent = `Envoi de ${action}...`;
 
             try {
-                // // _ Lance la requête vers Apps Script
                 const response = await fetch(url);
+                const textResponse = await response.text();
                 
                 if (response.ok) {
-                    // Si le statut est 200 (OK)
-                    const resultText = await response.text();
-                    updateDisplay(`Réponse reçue: ${resultText}`);
-                    dire("Commande exécutée.");
-                    console.log(`[Réponse Apps Script] Statut OK. Réponse: ${resultText}`);
+                    console.log("Réponse Apps Script: ", textResponse);
+                    recognizedTextEl.innerHTML = `<span class="success">Réussite: ${textResponse.substring(0, 100)}...</span>`;
+                    dire(`Action ${action} terminée.`); 
                 } else {
-                    // Si le statut est une erreur HTTP (4xx, 5xx), le Apps Script a répondu mais a échoué.
-                    const errorText = await response.text();
-                    updateDisplay(`Erreur HTTP: ${response.status} - Apps Script a répondu par une erreur interne. Consultez les logs du script.`);
-                    dire("Erreur de connexion Apps Script.");
-                    console.error(`[Erreur HTTP Apps Script] Statut: ${response.status}. Corps: ${errorText}`);
+                    console.error(`Erreur HTTP: ${response.status}: ${textResponse}`);
+                    recognizedTextEl.innerHTML = `<span class="error">Échec: ${response.status}</span>`;
+                    dire(`Échec de la commande ${action}.`);
                 }
-
             } catch (error) {
-                // // _ Cette erreur attrape les problèmes réseau/CORS/Déploiement qui bloquent la requête AVANT qu'elle atteigne le serveur.
-                updateDisplay(`ERREUR FATALE CLIENT: Requête bloquée. Vérifiez l'URL de déploiement et le réseau. Détails dans la console.`);
-                dire("Erreur de connexion Apps Script.");
-                console.error(`[ERREUR FATALE CLIENT] La requête a échoué. Cause la plus probable: mauvaise BASE_URL ou blocage CORS/réseau.`, error);
+                console.error("Erreur de connexion Apps Script: ", error);
+                recognizedTextEl.innerHTML = `<span class="error">Erreur de connexion</span>`;
+                dire("Erreur de connexion.");
+            } finally {
+                updateDisplay(oldStatus);
             }
         }
 
@@ -220,7 +210,7 @@
 
             // 2. RECHERCHE ET EXÉCUTION DE LA COMMANDE APPS SCRIPT
             for (const item of commandsData) {
-                /*let commandFound = true;
+                let commandFound = true;
                 const baseWords = noAccents(item.baseWord).split(" ");
                 let lastWord = baseWords[baseWords.length - 1];
 
@@ -229,28 +219,8 @@
                         commandFound = false;
                         break;
                     }
-                }*/
+                }
 
-
-                
-                let commandFound = false; // Initialisation à false
-                // const baseWords = noAccents(item.baseWord).split(" "); // //// _ ANCIENNE LIGNE SUPPRIMEE
-                // let lastWord = baseWords[baseWords.length - 1]; // //// _ ANCIENNE LIGNE SUPPRIMEE
-                let lastWord = ""; // _ Nouveau: Stocke le mot-clé réellement trouvé pour l'extraction de paramètre.
-                // NOUVEAU: Itération sur les keywords (synonymes/variantes)
-                for (const keyword of item.keywords) {
-                    const normalizedKeyword = noAccents(keyword).toLowerCase(); // _ S'assurer que le keyword est normalisé
-                    
-                    // On vérifie si la phrase normalisée commence par le keyword ou l'inclut
-                    // L'usage de `startsWith` est généralement plus précis pour une commande au début de la phrase.
-                    if (phrase.includes(normalizedKeyword)) { // _ Utilisation de includes pour les commandes composées
-                        commandFound = true;
-                        lastWord = normalizedKeyword; // _ Le mot-clé trouvé devient la référence pour l'extraction du paramètre
-                        break; // Une variante est suffisante
-                    }
-                }
-
-                
                 if (commandFound) {
                     let getAction = item.comandGet;
                     let getParam1 = "";
