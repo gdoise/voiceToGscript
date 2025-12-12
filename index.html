@@ -40,7 +40,6 @@
         
         let mode = "auto";
         let parametre = "";
-        let commandsData = []; // La liste des commandes sera chargée dynamiquement.
         let recognition = null; // Objet pour la reconnaissance vocale
 
         // // _ Références aux éléments du DOM
@@ -54,6 +53,19 @@
         const setParamButton = document.getElementById('set-param-button');
         const runCommandButton = document.getElementById('run-command-button');
 
+        // BLOC DE DONNÉES EN DUR (Assurer le succès)
+        // -----------------------------------------------------------------------------------
+        let commandsData = [   // La liste des commandes sera chargée dynamiquement.
+            // // _ baseWords est maintenant un tableau de synonymes.
+            {"baseWords": ["liste", "list"], "comandGet": "listAllocine","echec":"paramètre ?"}, 
+            {"baseWords": ["choisi", "choisis", "choisit"], "comandGet": "choixAllocine","echec":"paramètre ?"},
+            {"baseWords": ["cherche exact"], "comandGet": "findExact","echec":"paramètre ?"},
+            {"baseWords": ["cherche"], "comandGet": "find","echec":"paramètre ?"},
+            {"baseWords": ["quit", "quitter"], "comandGet": "Quitter","echec":"paramètre ?"},
+            {"baseWords": ["identifiant"], "comandGet": "goWSheetIdRow","echec":"paramètre ?"},
+            {"baseWords": ["allocine"], "comandGet": "allocine","echec":"paramètre ?"}
+        ];
+        
         // ________________________DEF__(Fonctions Utilitaires)___________________
 
         /**
@@ -90,29 +102,22 @@
             modeDisplayEl.textContent = mode;
             paramDisplayEl.textContent = parametre ? parametre : "Non défini";
         }
-
+        
         /**
          * Fonction: loadConfig
          * Rôle: Télécharge la liste des commandes et la configuration depuis Apps Script.
          */
         async function loadConfig() {
             updateDisplay("Chargement de la configuration...");
-            
+            const configUrl = `${BASE_URL}?action=getConfig`;
             try {
-                // BLOC DE DONNÉES EN DUR (Assurer le succès)
+                // // _ BLOC DE DONNÉES EN DUR (À utiliser pour les tests JS locaux si le fetch échoue)
+              
                 // -----------------------------------------------------------------------------------
-                commandsData = [ 
-                    {"baseWord": "liste", "comandGet": "listAllocine","echec":"paramètre ?"}, 
-                    {"baseWord": "choisis", "comandGet": "choixAllocine","echec":"paramètre ?"},
-                    {"baseWord": "cherche exact", "comandGet": "findExact","echec":"paramètre ?"},
-                    {"baseWord": "cherche", "comandGet": "find","echec":"paramètre ?"},
-                    {"baseWord": "quit", "comandGet": "Quitter","echec":"paramètre ?"},
-                    {"baseWord": "identifiant", "comandGet": "goWSheetIdRow","echec":"paramètre ?"},
-                    {"baseWord": "allocine", "comandGet": "allocine","echec":"paramètre ?"}
-                ]; 
+                // // _ BLOC DE DONNÉES DYNAMIQUES (À utiliser si le fetch réussit)
+                const response = await fetch(configUrl); 
+                commandsData = await response.json();
                 
-                // -----------------------------------------------------------------------------------
-
                 // NOUVEAU CHECK VISUEL : Ajout d'une classe pour rendre le statut vert
                 statusEl.classList.add('success');
                 console.log("SUCCESS: Configuration des commandes en dur chargée."); // Vérification Console
@@ -124,11 +129,11 @@
                 startButton.disabled = false;
 
             } catch (error) {
-                console.error("Erreur de chargement de la config:", error);
+                console.error("Config en dure - Erreur de chargement de la config:", error);
                 statusEl.classList.remove('success');
                 statusEl.classList.add('error');
-                updateDisplay("Erreur: Échec du chargement de la configuration.");
-                dire("Erreur: Échec du chargement de la configuration.");
+                updateDisplay("config en dure _ Erreur: Échec du chargement de la configuration.");
+                dire("Config en dure - Erreur: Échec du chargement de la configuration.");
             }
         }
         
@@ -210,7 +215,7 @@
 
             // 2. RECHERCHE ET EXÉCUTION DE LA COMMANDE APPS SCRIPT
             for (const item of commandsData) {
-                let commandFound = true;
+                /*let commandFound = true;
                 const baseWords = noAccents(item.baseWord).split(" ");
                 let lastWord = baseWords[baseWords.length - 1];
 
@@ -219,8 +224,27 @@
                         commandFound = false;
                         break;
                     }
-                }
+                }*/
+                let commandFound = false; // Initialisation à false
+                // const baseWords = noAccents(item.baseWord).split(" "); // //// _ ANCIENNE LIGNE SUPPRIMEE
+                // let lastWord = baseWords[baseWords.length - 1]; // //// _ ANCIENNE LIGNE SUPPRIMEE
+                let lastWord = ""; // _ Nouveau: Stocke le mot-clé réellement trouvé pour l'extraction de paramètre.
 
+
+                // NOUVEAU: Itération sur les keywords (synonymes/variantes)
+                for (const keyword of item.keywords) {
+                    const normalizedKeyword = noAccents(keyword).toLowerCase(); // _ S'assurer que le keyword est normalisé
+                    
+                    // On vérifie si la phrase normalisée commence par le keyword ou l'inclut
+                    // L'usage de `startsWith` est généralement plus précis pour une commande au début de la phrase.
+                    if (phrase.includes(normalizedKeyword)) { // _ Utilisation de includes pour les commandes composées
+                        commandFound = true;
+                        lastWord = normalizedKeyword; // _ Le mot-clé trouvé devient la référence pour l'extraction du paramètre
+                        break; // Une variante est suffisante
+                    }
+                }
+
+                
                 if (commandFound) {
                     let getAction = item.comandGet;
                     let getParam1 = "";
