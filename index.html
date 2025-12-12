@@ -13,7 +13,7 @@
     </style>
 </head>
 <body>
-    <h1>Assistant Vocal Google Sheet V1.3 Synonymes en dur try</h1>
+    <h1>Assistant Vocal Google Sheet v1.3 Synonymes en dur</h1>
 
     <div id="status-container">
         <p>Statut du Système: <span id="status">Initialisation...</span></p>
@@ -139,37 +139,43 @@
         // ________________________DEF__(Fonctions d'Action)___________________
 
         /**
-         * Fonction: sendCommand
-         * Rôle: Envoie la commande et le paramètre à Google Apps Script via fetch.
-         * Usage: sendCommand("listAllocine", "penelope");
+         * Fonction: sendToAppsScript
+         * Rôle: Envoie la commande et le paramètre à l'application Google Apps Script.
+         * Points Particuliers: Ajout d'un traitement d'erreur robuste pour diagnostiquer les problèmes réseau/CORS.
+         * @param {string} action - L'action (comandGet) à exécuter.
+         * @param {string} param1 - Le paramètre de la commande.
          */
-        async function sendCommand(action, param1) {
-            // // _ La conversion noAccents n'est pas nécessaire ici, car param1 est déjà traité par processCommand/paramInput.
+        async function sendToAppsScript(action, param1) {
+            // // _ Utilise encodeURIComponent pour s'assurer que les espaces et caractères spéciaux sont bien encodés
             const url = `${BASE_URL}?action=${action}&param1=${encodeURIComponent(param1)}`;
-            console.log(`Envoi de la commande: ${url}`);
             
-            const oldStatus = statusEl.textContent;
-            statusEl.textContent = `Envoi de ${action}...`;
+            console.log(`[Requête Apps Script] Tentative d'envoi: ${url}`);
+            updateDisplay(`Envoi de la commande ${action} avec paramètre: ${param1}...`);
+            dire("Envoi en cours.");
 
             try {
+                // // _ Lance la requête vers Apps Script
                 const response = await fetch(url);
-                const textResponse = await response.text();
                 
                 if (response.ok) {
-                    console.log("Réponse Apps Script: ", textResponse);
-                    recognizedTextEl.innerHTML = `<span class="success">Réussite: ${textResponse.substring(0, 100)}...</span>`;
-                    dire(`Action ${action} terminée.`); 
+                    // Si le statut est 200 (OK)
+                    const resultText = await response.text();
+                    updateDisplay(`Réponse reçue: ${resultText}`);
+                    dire("Commande exécutée.");
+                    console.log(`[Réponse Apps Script] Statut OK. Réponse: ${resultText}`);
                 } else {
-                    console.error(`Erreur HTTP: ${response.status}: ${textResponse}`);
-                    recognizedTextEl.innerHTML = `<span class="error">Échec: ${response.status}</span>`;
-                    dire(`Échec de la commande ${action}.`);
+                    // Si le statut est une erreur HTTP (4xx, 5xx), le Apps Script a répondu mais a échoué.
+                    const errorText = await response.text();
+                    updateDisplay(`Erreur HTTP: ${response.status} - Apps Script a répondu par une erreur interne. Consultez les logs du script.`);
+                    dire("Erreur de connexion Apps Script.");
+                    console.error(`[Erreur HTTP Apps Script] Statut: ${response.status}. Corps: ${errorText}`);
                 }
+
             } catch (error) {
-                console.error("Erreur de connexion Apps Script: ", error);
-                recognizedTextEl.innerHTML = `<span class="error">Erreur de connexion</span>`;
-                dire("Erreur de connexion.");
-            } finally {
-                updateDisplay(oldStatus);
+                // // _ Cette erreur attrape les problèmes réseau/CORS/Déploiement qui bloquent la requête AVANT qu'elle atteigne le serveur.
+                updateDisplay(`ERREUR FATALE CLIENT: Requête bloquée. Vérifiez l'URL de déploiement et le réseau. Détails dans la console.`);
+                dire("Erreur de connexion Apps Script.");
+                console.error(`[ERREUR FATALE CLIENT] La requête a échoué. Cause la plus probable: mauvaise BASE_URL ou blocage CORS/réseau.`, error);
             }
         }
 
