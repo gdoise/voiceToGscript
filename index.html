@@ -13,7 +13,7 @@
     </style>
 </head>
 <body>
-    <h1>Assistant Vocal Google Sheet v1.3</h1>
+    <h1>Assistant Vocal Google Sheet V1.3 Synonymes en dur</h1>
 
     <div id="status-container">
         <p>Statut du Système: <span id="status">Initialisation...</span></p>
@@ -110,30 +110,32 @@
         async function loadConfig() {
             updateDisplay("Chargement de la configuration...");
             const configUrl = `${BASE_URL}?action=getConfig`;
-            try {
-                // // _ BLOC DE DONNÉES EN DUR (À utiliser pour les tests JS locaux si le fetch échoue)
-              
-                // -----------------------------------------------------------------------------------
-                // // _ BLOC DE DONNÉES DYNAMIQUES (À utiliser si le fetch réussit)
-                const response = await fetch(configUrl); 
-                commandsData = await response.json();
-                
-                // NOUVEAU CHECK VISUEL : Ajout d'une classe pour rendre le statut vert
-                statusEl.classList.add('success');
-                console.log("SUCCESS: Configuration des commandes en dur chargée."); // Vérification Console
-                
-                updateDisplay("Configuration chargée. Prêt. (Vérifiez si l'affichage est vert)");
-                
-                // Tente toujours de parler
-                dire("Configuration chargée. Prêt."); 
-                startButton.disabled = false;
-
-            } catch (error) {
-                console.error("Config en dure - Erreur de chargement de la config:", error);
-                statusEl.classList.remove('success');
-                statusEl.classList.add('error');
-                updateDisplay("config en dure _ Erreur: Échec du chargement de la configuration.");
-                dire("Config en dure - Erreur: Échec du chargement de la configuration.");
+            if (false){
+                try {
+                    // // _ BLOC DE DONNÉES EN DUR (À utiliser pour les tests JS locaux si le fetch échoue)
+                  
+                    // -----------------------------------------------------------------------------------
+                    // // _ BLOC DE DONNÉES DYNAMIQUES (À utiliser si le fetch réussit)
+                    const response = await fetch(configUrl); 
+                    commandsData = await response.json();
+                    
+                    // NOUVEAU CHECK VISUEL : Ajout d'une classe pour rendre le statut vert
+                    statusEl.classList.add('success');
+                    console.log("SUCCESS: Configuration des commandes en dur chargée."); // Vérification Console
+                    
+                    updateDisplay("Configuration chargée. Prêt. (Vérifiez si l'affichage est vert)");
+                    
+                    // Tente toujours de parler
+                    dire("Configuration chargée. Prêt."); 
+                    startButton.disabled = false;
+    
+                } catch (error) {
+                    console.error("Config en dure - Erreur de chargement de la config:", error);
+                    statusEl.classList.remove('success');
+                    statusEl.classList.add('error');
+                    updateDisplay("config en dure _ Erreur: Échec du chargement de la configuration.");
+                    dire("Config en dure - Erreur: Échec du chargement de la configuration.");
+                }
             }
         }
         
