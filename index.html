@@ -13,7 +13,7 @@
     </style>
 </head>
 <body>
-    <h1>Assistant Vocal Google Sheet br synonym v2.1 test</h1>
+    <h1>Assistant Vocal Google Sheet br synonym v2.2 testLogclient</h1>
 
     <div id="status-container">
         <p>Statut du Système: <span id="status">Initialisation...</span></p>
@@ -32,7 +32,9 @@
     
     <button id="start-button">Démarrer l'écoute</button>
     <button id="stop-button" disabled>Arrêter l'écoute</button>
-
+    <h3>Journal client</h3>
+    <textarea id="client-log" style="width:100%;height:200px;font-size:12px;"></textarea>
+    
     <script>
         // // _ Définition des constantes et des variables globales
         //const BASE_URL = 'https://script.google.com/macros/s/AKfycbw29jEnWMJ0l3HJFUptrtKEMp4zk2G4zA-NbJJxSBRffFio8qCMX01l0sVS-rBuRWBd/exec'; // ok avec v1.2 (sans gestion des synonyme)
@@ -56,7 +58,16 @@
         const runCommandButton = document.getElementById('run-command-button');
 
         // ________________________DEF__(Fonctions Utilitaires)___________________
-
+        
+        function logClient(msg) {
+            const logArea = document.getElementById("client-log");
+            if (logArea) {
+                const t = new Date().toLocaleTimeString();
+                logArea.value += `[${t}] ${msg}\n`;
+                logArea.scrollTop = logArea.scrollHeight;
+            }
+        }
+        
         /**
          * Fonction: dire
          * Rôle: Utilise la synthèse vocale pour prononcer un texte.
@@ -178,7 +189,9 @@
          * Usage: processCommand("cherche exact titanic");
          */
         function processCommand(phraseBrute) {
+            logClient("-192 processCommand() → phrase brute: " + phraseBrute);
             let phrase = noAccents(phraseBrute);
+            logClient("-194 processCommand() → normalisé: " + phrase);
             console.log('SAID (Normalisé):' + phrase);
             recognizedTextEl.textContent = phraseBrute;
 
@@ -211,7 +224,7 @@
 
             // 2. RECHERCHE ET EXÉCUTION DE LA COMMANDE APPS SCRIPT
             for (const item of commandsData) {
-
+                logClient("-227 Test commande: " + JSON.stringify(item));
                 // --- NOUVEAU : itère sur tous les synonymes ---
                 let commandFound = false;
                 let matchedWord = "";
@@ -226,6 +239,7 @@
                 }
             
                 if (commandFound) {
+                    logClient("-242 => Commande reconnue grâce au synonyme: '" + matchedWord + "'");
                     let getAction = item.comandGet;
                     let getParam1 = "";
             
@@ -241,7 +255,7 @@
                     let paramVoc = phraseBrute.substring(indexAfter).trim();
             
                     const paramIsProvided = paramVoc !== "";
-            
+                    logClient("-258 Param extrait: '" + paramVoc + "'  | Paramètre global=" + parametre);
                     if (mode === "auto") {
                         getParam1 = paramIsProvided ? paramVoc : parametre;
                     } else if (mode === "indirect") {
@@ -252,9 +266,11 @@
             
                     // Final
                     if (getParam1) {
+                        logClient("-269 Envoi à Apps Script: action=" + getAction + " param1=" + getParam1);
                         sendCommand(getAction, getParam1);
                         return;
                     } else {
+                        logClient("-273 Paramètre manquant → item.echec=" + item.echec);
                         dire(`Veuillez spécifier un ${item.echec}`);
                         return;
                     }
@@ -263,6 +279,7 @@
 
             // Si aucune commande reconnue
             if (!phrase.includes("mode") && !phrase.includes("parametre")) {
+                 logClient("-282 Aucune commande reconnue pour cette phrase.");
                  dire("Commande non reconnue.");
             }
         }
