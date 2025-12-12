@@ -13,7 +13,7 @@
     </style>
 </head>
 <body>
-    <h1>Assistant Vocal Google Sheet br synonym v2.4 ok mais doublons</h1>
+    <h1>Assistant Vocal Google Sheet br synonym v2.5 test array synList</h1>
 
     <div id="status-container">
         <p>Statut du Système: <span id="status">Initialisation...</span></p>
@@ -228,8 +228,11 @@
                 // --- NOUVEAU : itère sur tous les synonymes ---
                 let commandFound = false;
                 let matchedWord = "";
-            
-                for (const syn of item.baseWords) {
+                
+                const synList = Array.isArray(item.baseWords) ? item.baseWords : [];
+                logClient("→ Synonymes analysés: " + JSON.stringify(synList));
+
+                for (const syn of synList) { //(const syn of item.baseWords) 
                     let synNorm = noAccents(syn).trim();
                     if (synNorm && phrase.includes(synNorm)) {
                         commandFound = true;
@@ -358,6 +361,24 @@
         document.addEventListener('DOMContentLoaded', () => {
             // 1. Initialisation
             loadConfig(); 
+            
+            // Normalisation universelle : convertit toutes les commandes en listes de mots-clés
+            commandsData = commandsData.map(cmd => {
+                let bw = cmd.baseWords;
+            
+                // Si baseWords est une string → split
+                if (typeof bw === "string") {
+                    bw = bw.split(",").map(s => s.trim()).filter(s => s !== "");
+                }
+            
+                // Si c'était déjà un tableau → ok
+                cmd.baseWords = bw;
+            
+                return cmd;
+            });
+            
+            logClient("Commandes normalisées: " + JSON.stringify(commandsData));
+
 
             // 2. Événements pour la reconnaissance vocale
             startButton.addEventListener('click', startSpeechRecognition);
