@@ -13,7 +13,7 @@
     </style>
 </head>
 <body>
-    <h1>Assistant Vocal Google Sheet br synonym v2.5 test array synList</h1>
+    <h1>Assistant Vocal Google Sheet br synonym v2.6 bloque les doublons rapprochés</h1>
 
     <div id="status-container">
         <p>Statut du Système: <span id="status">Initialisation...</span></p>
@@ -56,6 +56,13 @@
         const paramInput = document.getElementById('parametre-input');
         const setParamButton = document.getElementById('set-param-button');
         const runCommandButton = document.getElementById('run-command-button');
+
+        let lastCommand = {
+            action: "",
+            param: "",
+            time: 0
+        };
+
 
         // ________________________DEF__(Fonctions Utilitaires)___________________
         
@@ -270,6 +277,21 @@
                     // Final
                     if (getParam1) {
                         logClient("-269 Envoi à Apps Script: action=" + getAction + " param1=" + getParam1);
+                        // Anti-répétition : bloque les doublons rapprochés
+                        const now = Date.now();
+                        if (
+                            lastCommand.action === getAction &&
+                            lastCommand.param === getParam1 &&
+                            (now - lastCommand.time) < 1200       // 1.2 seconde
+                        ) {
+                            logClient("⚠️ Commande ignorée (doublon rapproché) : action=" + getAction + " param=" + getParam1);
+                            return;
+                        }
+                        
+                        // Mise à jour mémoire anti-doublon
+                        lastCommand.action = getAction;
+                        lastCommand.param = getParam1;
+                        lastCommand.time = now;
                         sendCommand(getAction, getParam1);
                         return;
                     } else {
