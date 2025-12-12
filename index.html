@@ -13,7 +13,7 @@
     </style>
 </head>
 <body>
-    <h1>Assistant Vocal Google Sheet v1.2</h1>
+    <h1>Assistant Vocal Google Sheet br synonym v2.1 test</h1>
 
     <div id="status-container">
         <p>Statut du Système: <span id="status">Initialisation...</span></p>
@@ -103,8 +103,8 @@
                 // BLOC DE DONNÉES EN DUR (Assurer le succès)
                 // -----------------------------------------------------------------------------------
                 commandsData = [ 
-                    {"baseWord": "liste", "comandGet": "listAllocine","echec":"paramètre ?"}, 
-                    {"baseWord": "choisis", "comandGet": "choixAllocine","echec":"paramètre ?"},
+                    {"baseWord": ["list", "liste"], "comandGet": "listAllocine","echec":"paramètre ?"}, 
+                    {"baseWords": ["choisis", "choisi", "choisit"], "comandGet": "choixAllocine","echec":"paramètre ?"},
                     {"baseWord": "cherche exact", "comandGet": "findExact","echec":"paramètre ?"},
                     {"baseWord": "cherche", "comandGet": "find","echec":"paramètre ?"},
                     {"baseWord": "quit", "comandGet": "Quitter","echec":"paramètre ?"},
@@ -211,56 +211,55 @@
 
             // 2. RECHERCHE ET EXÉCUTION DE LA COMMANDE APPS SCRIPT
             for (const item of commandsData) {
-                let commandFound = true;
-                const baseWords = noAccents(item.baseWord).split(" ");
-                let lastWord = baseWords[baseWords.length - 1];
 
-                for (const w of baseWords) {
-                    if (!phrase.includes(w)) {
-                        commandFound = false;
+                // --- NOUVEAU : itère sur tous les synonymes ---
+                let commandFound = false;
+                let matchedWord = "";
+            
+                for (const syn of item.baseWords) {
+                    let synNorm = noAccents(syn).trim();
+                    if (synNorm && phrase.includes(synNorm)) {
+                        commandFound = true;
+                        matchedWord = synNorm;
                         break;
                     }
                 }
-
+            
                 if (commandFound) {
                     let getAction = item.comandGet;
                     let getParam1 = "";
-                    
-                    // Si 'quit', pas d'envoi à Apps Script
+            
+                    // Quitter (inchangé)
                     if (getAction === "Quitter") {
                         dire("Au revoir !");
                         recognition.stop();
                         return;
                     }
-
-                    // Extrait le paramètre (ce qui suit le dernier mot de la commande)
-                    // On cherche le paramètre dans la PHRASE BRUTE (avec accents) pour le garder intact
-                    const indexAfterCommand = phrase.indexOf(lastWord) + lastWord.length;
-                    // On trouve l'équivalent dans la phrase brute (c'est une estimation car les longueurs peuvent varier)
-                    let paramVoc = phraseBrute.substring(indexAfterCommand).trim(); 
-
-                    // LOGIQUE D'EXÉCUTION
+            
+                    // --- NOUVEAU : extraction param basée sur le synonyme réellement trouvé ---
+                    const indexAfter = phrase.indexOf(matchedWord) + matchedWord.length;
+                    let paramVoc = phraseBrute.substring(indexAfter).trim();
+            
                     const paramIsProvided = paramVoc !== "";
-
+            
                     if (mode === "auto") {
                         getParam1 = paramIsProvided ? paramVoc : parametre;
                     } else if (mode === "indirect") {
-                        getParam1 = parametre; // Toujours utiliser le paramètre global
+                        getParam1 = parametre;
                     } else if (mode === "direct" && paramIsProvided) {
-                        getParam1 = paramVoc; // Utiliser seulement ce qui a été dit
+                        getParam1 = paramVoc;
                     }
-                    
-                    // Vérification finale du paramètre
+            
+                    // Final
                     if (getParam1) {
                         sendCommand(getAction, getParam1);
-                        return; // Une fois trouvée et exécutée, on sort
+                        return;
                     } else {
-                        console.log(item.echec);
                         dire(`Veuillez spécifier un ${item.echec}`);
                         return;
                     }
                 }
-            }
+            }                
 
             // Si aucune commande reconnue
             if (!phrase.includes("mode") && !phrase.includes("parametre")) {
