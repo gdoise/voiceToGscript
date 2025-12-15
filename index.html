@@ -13,7 +13,7 @@
     </style>
 </head>
 <body>
-    <h1>Assistant Vocal Google Sheet br synonym v2.8 ajuster</h1>
+    <h1>Assistant Vocal Google Sheet br synonym v2.9 Synonymes multi-mots Test</h1>
 
     <div id="status-container">
         <p>Statut du Système: <span id="status">Initialisation...</span></p>
@@ -122,7 +122,9 @@
          */
         async function loadConfig() {
             updateDisplay("Chargement de la configuration...");
-            
+            // la version actuelle permet elle une gestion "synonymes multi-mots" (ex : ["affichette ajuster","affichette ajuste"]) , sinon implemetnons la
+            // puis completons les commandes non encore imlementées dans le html mais prévues dans le.gs
+            // Ensuite on fera  le mode d'emploi utilisateurs détaillé de mon systeme. Y compri le fonctionnement des modes "directs" et "indirect"
             try {
                 // BLOC DE DONNÉES EN DUR (Assurer le succès)
                 // -----------------------------------------------------------------------------------
@@ -254,7 +256,10 @@
 
                 for (const syn of synList) { //(const syn of item.baseWords) 
                     let synNorm = noAccents(syn).trim();
-                    if (synNorm && phrase.includes(synNorm)) {
+                    //if (synNorm && phrase.includes(synNorm)) {
+                    const regex = new RegExp(`(^|\\s)${synNorm}(\\s|$)`);
+                    if (synNorm && regex.test(phrase)) {
+
                         commandFound = true;
                         matchedWord = synNorm;
                         break;
@@ -400,10 +405,9 @@
             // Normalisation universelle : convertit toutes les commandes en listes de mots-clés
             commandsData = commandsData.map(cmd => {
                 let bw = cmd.baseWords;
-            
                 // Si baseWords est une string → split
                 if (typeof bw === "string") {
-                    bw = bw.split(",").map(s => s.trim()).filter(s => s !== "");
+                    bw = bw.split(",").map(s => s.trim()).filter(Boolean);  //bw = bw.split(",").map(s => s.trim()).filter(s => s !== "");
                 }
             
                 // Si c'était déjà un tableau → ok
@@ -413,8 +417,7 @@
             });
             
             logClient("Commandes normalisées: " + JSON.stringify(commandsData));
-
-
+            
             // 2. Événements pour la reconnaissance vocale
             startButton.addEventListener('click', startSpeechRecognition);
             stopButton.addEventListener('click', () => {
