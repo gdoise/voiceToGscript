@@ -37,8 +37,14 @@
     
     <script>
         // // _ Définition des constantes et des variables globales
-        //on ira le chercher sur GetLatestGScriptID   https://docs.google.com/spreadsheets/d/1rXN5MojlxvFxKcy9QScEZ_wAxEDLANgBmlJ3HoyzIPg/edit?gid=0#gid=0
+        /* _ Ma sheet "Feuille 1" de la spreadsheet https://docs.google.com/spreadsheets/d/1rXN5MojlxvFxKcy9QScEZ_wAxEDLANgBmlJ3HoyzIPg/edit?gid=0#gid=0
+        me permet de stocker mes id de deploiement de different projets.
+        Appeler https://script.google.com/macros/s/AKfycbxQKWbv4do2Hi37BOodbTQ4Pef-OiG77YLtwVwXpU6PDcgpfrkiWVCdTImjdDdzyDh1/exec?spreadsheetId=1rXN5MojlxvFxKcy9QScEZ_wAxEDLANgBmlJ3HoyzIPg&project=GetLatestGScriptID
+        pourrait alors fournir l'id déploiement mais en fait ca ralentirait le processe à chaque appel !
+        Mieux vaux le modifier ici en dure
+        */
         const BASE_URL = 'https://script.google.com/macros/s/AKfycbwk7nUiulWZ51CQVobo3oMhifJPHS0JnvjV_CIDR_oYsTCwBzCT79q6ei8EVT1VcyKI/exec';
+    
         // // _ Ceci est un DEPLOY_ID de démo. À REMPLACER par votre ID réel de Apps Script (celui du arrMySheet[0][1]).
         
         let mode = "auto";
@@ -132,7 +138,7 @@
                     {"baseWords": "affiche ajuste", "comandGet": "affiche_MAJ","echec":"paramètre ?"},
                     {"baseWords": "affiche ajoute", "comandGet": "affiche_ADD","echec":"paramètre ?"},
                     {"baseWords": "affiche enleve", "comandGet": "affiche_SUB","echec":"paramètre ?"},
-                    {"baseWords": "affichette ajute", "comandGet": "affichette_MAJ","echec":"paramètre ?"},
+                    {"baseWords": ["affichette ajuster","affichette ajuste",], "comandGet": "affichette_MAJ","echec":"paramètre ?"},
                     {"baseWords": "affichette ajoute", "comandGet": "affichette_ADD","echec":"paramètre ?"},
                     {"baseWords": "affichette enleve", "comandGet": "affichette_SUB","echec":"paramètre ?"}
                 ]; 
