@@ -13,7 +13,7 @@
     </style>
 </head>
 <body>
-    <h1>Assistant Vocal Google Sheet br synonym v2.9 Synonymes multi-mots Test</h1>
+    <h1>Assistant Vocal Google Sheet br synonym v3.0 frenchTextToNumber</h1>
 
     <div id="status-container">
         <p>Statut du Système: <span id="status">Initialisation...</span></p>
@@ -62,15 +62,67 @@
         const paramInput = document.getElementById('parametre-input');
         const setParamButton = document.getElementById('set-param-button');
         const runCommandButton = document.getElementById('run-command-button');
-
         let lastCommand = {
             action: "",
             param: "",
             time: 0
         };
-
+        const numericActions = [
+            "affiche_MAJ",
+            "SelectIdRow"
+        ];
 
         // ________________________DEF__(Fonctions Utilitaires)___________________
+        
+        /**
+         * Fonction: loadConfig
+         * Rôle: Télécharge la liste des commandes et la configuration depuis Apps Script.
+         */
+        async function loadConfig() {
+            updateDisplay("Chargement de la configuration...");
+            // la version actuelle permet elle une gestion "synonymes multi-mots" (ex : ["affichette ajuster","affichette ajuste"]) , sinon implemetnons la
+            // puis completons les commandes non encore imlementées dans le html mais prévues dans le.gs
+            // Ensuite on fera  le mode d'emploi utilisateurs détaillé de mon systeme. Y compri le fonctionnement des modes "directs" et "indirect"
+            try {
+                // BLOC DE DONNÉES EN DUR (Assurer le succès)
+                // -----------------------------------------------------------------------------------
+                commandsData = [ 
+                    {"baseWords": ["liste", "list"], "comandGet": "listAllocine","echec":"paramètre ?"}, 
+                    {"baseWords": ["choisis", "choisi", "choisit"], "comandGet": "choixAllocine","echec":"paramètre ?"},
+                    {"baseWords": "cherche exact", "comandGet": "findExact","echec":"paramètre ?"},
+                    {"baseWords": "cherche", "comandGet": "find","echec":"paramètre ?"},
+                    {"baseWords": "quit", "comandGet": "Quitter","echec":"paramètre ?"},
+                    {"baseWords": "identifiant", "comandGet": "goWSheetIdRow","echec":"paramètre ?"},
+                    {"baseWords": "allocine", "comandGet": "allocine","echec":"paramètre ?"},
+                    {"baseWords": ["selectionne","selection"], "comandGet": "SelectIdRow","echec":"paramètre ?"},
+                    {"baseWords": ["affiche ajuster","affiche ajuste","affiche a juste"], "comandGet": "affiche_MAJ","echec":"paramètre ?"},
+                    {"baseWords": "affiche ajoute", "comandGet": "affiche_ADD","echec":"paramètre ?"},
+                    {"baseWords": "affiche enleve", "comandGet": "affiche_SUB","echec":"paramètre ?"},
+                    {"baseWords": ["affichette ajuster","affichette ajuste","affichette a juste"], "comandGet": "affichette_MAJ","echec":"paramètre ?"},
+                    {"baseWords": "affichette ajoute", "comandGet": "affichette_ADD","echec":"paramètre ?"},
+                    {"baseWords": "affichette enleve", "comandGet": "affichette_SUB","echec":"paramètre ?"}
+                ]; 
+                
+                // -----------------------------------------------------------------------------------
+
+                // NOUVEAU CHECK VISUEL : Ajout d'une classe pour rendre le statut vert
+                statusEl.classList.add('success');
+                console.log("SUCCESS: Configuration des commandes en dur chargée."); // Vérification Console
+                
+                updateDisplay("Configuration chargée. Prêt. (Vérifiez si l'affichage est vert)");
+                
+                // Tente toujours de parler
+                dire("Configuration chargée. Prêt."); 
+                startButton.disabled = false;
+
+            } catch (error) {
+                console.error("Erreur de chargement de la config:", error);
+                statusEl.classList.remove('success');
+                statusEl.classList.add('error');
+                updateDisplay("Erreur: Échec du chargement de la configuration.");
+                dire("Erreur: Échec du chargement de la configuration.");
+            }
+        }
         
         function logClient(msg) {
             const logArea = document.getElementById("client-log");
@@ -81,6 +133,61 @@
             }
         }
         
+        // Convertit les chiffre de toute lettre vers nombre
+        function frenchTextToNumber(txt) {
+            if (!txt) return txt;
+        
+            // Si déjà numérique → ok
+            if (!isNaN(txt)) return parseInt(txt, 10);
+        
+            txt = txt.toLowerCase().trim();
+        
+            const map = {
+                "zero": 0,
+                "un": 1,
+                "une": 1,
+                "deux": 2,
+                "trois": 3,
+                "quatre": 4,
+                "cinq": 5,
+                "six": 6,
+                "sept": 7,
+                "huit": 8,
+                "neuf": 9,
+                "dix": 10,
+                "onze": 11,
+                "douze": 12,
+                "treize": 13,
+                "quatorze": 14,
+                "quinze": 15,
+                "seize": 16,
+                "vingt": 20,
+                "trente": 30,
+                "quarante": 40,
+                "cinquante": 50
+            };
+        
+            // Cas simple : "deux", "trois", etc.
+            if (map.hasOwnProperty(txt)) {
+                return map[txt];
+            }
+        
+            // Cas "vingt et un", "trente deux", etc.
+            let parts = txt.split(/\s+/);
+            let total = 0;
+        
+            for (let p of parts) {
+                if (p === "et") continue;
+                if (map.hasOwnProperty(p)) {
+                    total += map[p];
+                } else {
+                    return txt; // inconnu → on ne touche pas
+                }
+            }
+        
+            return total > 0 ? total : txt;
+        }
+
         /**
          * Fonction: dire
          * Rôle: Utilise la synthèse vocale pour prononcer un texte.
@@ -114,56 +221,6 @@
             }
             modeDisplayEl.textContent = mode;
             paramDisplayEl.textContent = parametre ? parametre : "Non défini";
-        }
-
-        /**
-         * Fonction: loadConfig
-         * Rôle: Télécharge la liste des commandes et la configuration depuis Apps Script.
-         */
-        async function loadConfig() {
-            updateDisplay("Chargement de la configuration...");
-            // la version actuelle permet elle une gestion "synonymes multi-mots" (ex : ["affichette ajuster","affichette ajuste"]) , sinon implemetnons la
-            // puis completons les commandes non encore imlementées dans le html mais prévues dans le.gs
-            // Ensuite on fera  le mode d'emploi utilisateurs détaillé de mon systeme. Y compri le fonctionnement des modes "directs" et "indirect"
-            try {
-                // BLOC DE DONNÉES EN DUR (Assurer le succès)
-                // -----------------------------------------------------------------------------------
-                commandsData = [ 
-                    {"baseWords": ["liste", "list"], "comandGet": "listAllocine","echec":"paramètre ?"}, 
-                    {"baseWords": ["choisis", "choisi", "choisit"], "comandGet": "choixAllocine","echec":"paramètre ?"},
-                    {"baseWords": "cherche exact", "comandGet": "findExact","echec":"paramètre ?"},
-                    {"baseWords": "cherche", "comandGet": "find","echec":"paramètre ?"},
-                    {"baseWords": "quit", "comandGet": "Quitter","echec":"paramètre ?"},
-                    {"baseWords": "identifiant", "comandGet": "goWSheetIdRow","echec":"paramètre ?"},
-                    {"baseWords": "allocine", "comandGet": "allocine","echec":"paramètre ?"},
-                    {"baseWords": "selectionne", "comandGet": "SelectIdRow","echec":"paramètre ?"},
-                    {"baseWords": ["affiche ajuster","affiche ajuste","affiche a juste"], "comandGet": "affiche_MAJ","echec":"paramètre ?"},
-                    {"baseWords": "affiche ajoute", "comandGet": "affiche_ADD","echec":"paramètre ?"},
-                    {"baseWords": "affiche enleve", "comandGet": "affiche_SUB","echec":"paramètre ?"},
-                    {"baseWords": ["affichette ajuster","affichette ajuste","affichette a juste"], "comandGet": "affichette_MAJ","echec":"paramètre ?"},
-                    {"baseWords": "affichette ajoute", "comandGet": "affichette_ADD","echec":"paramètre ?"},
-                    {"baseWords": "affichette enleve", "comandGet": "affichette_SUB","echec":"paramètre ?"}
-                ]; 
-                
-                // -----------------------------------------------------------------------------------
-
-                // NOUVEAU CHECK VISUEL : Ajout d'une classe pour rendre le statut vert
-                statusEl.classList.add('success');
-                console.log("SUCCESS: Configuration des commandes en dur chargée."); // Vérification Console
-                
-                updateDisplay("Configuration chargée. Prêt. (Vérifiez si l'affichage est vert)");
-                
-                // Tente toujours de parler
-                dire("Configuration chargée. Prêt."); 
-                startButton.disabled = false;
-
-            } catch (error) {
-                console.error("Erreur de chargement de la config:", error);
-                statusEl.classList.remove('success');
-                statusEl.classList.add('error');
-                updateDisplay("Erreur: Échec du chargement de la configuration.");
-                dire("Erreur: Échec du chargement de la configuration.");
-            }
         }
         
         // ________________________DEF__(Fonctions d'Action)___________________
@@ -304,6 +361,12 @@
                         ) {
                             logClient("⚠️ Commande ignorée (doublon rapproché) : action=" + getAction + " param=" + getParam1);
                             return;
+                        }
+                        
+                        if (numericActions.includes(getAction)) {
+                            const converted = frenchTextToNumber(getParam1);
+                            //logClient(`Conversion numérique (${getAction}) : "${getParam1}" → "${converted}"`);
+                            getParam1 = converted;
                         }
                         
                         // Mise à jour mémoire anti-doublon
